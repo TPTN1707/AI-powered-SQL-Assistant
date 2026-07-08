@@ -14,5 +14,4 @@ llm = ChatGoogleGenerativeAI(
 )
 
 db = SQLDatabase.from_uri("sqlite:///data/shop.db")
-
-print(db.get_usable_table_names())
+schema = db.get_table_info()
