@@ -1,15 +1,17 @@
 from chain import chain
-from connect_database import db
-
+from connect_database import db, schema
 from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
 
 executor = QuerySQLDatabaseTool(db=db)
 
 question = input("Ask a question: ")
 
+schema = db.get_table_info()
+
 sql = chain.invoke(
     {
-        "question": question
+        "question": question,
+        "schema": schema,
     }
 )
 
