@@ -9,6 +9,7 @@ dependencies = [
     "langchain==0.3.27",
     "langchain-community==0.3.27",
     "langchain-google-genai==2.1.10",
+    "pandas>=3.0.3",
     "python-dotenv>=1.1.1",
     "sqlalchemy>=2.0.41",
     "streamlit>=1.59.1",
