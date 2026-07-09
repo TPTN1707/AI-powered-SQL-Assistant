@@ -42,7 +42,7 @@ if st.button("Generate & Execute SQL", type="primary"):
                 # Display results as an interactive table
                 st.subheader("📊 Query Result:")
                 if not df.empty:
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    st.dataframe(df, width="stretch", hide_index=True)
                     # Convert dataframe to a clean string format for the LLM to read
                     result_for_llm = df.to_string(index=False)
                 else:
