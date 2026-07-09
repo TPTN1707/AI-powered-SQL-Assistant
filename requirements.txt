@@ -4,3 +4,4 @@ langchain-google-genai==2.1.10
 python-dotenv>=1.1.1
 sqlalchemy>=2.0.41
 streamlit
+pandas
