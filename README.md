@@ -1,19 +1,19 @@
 # 🤖 AI-Powered SQL Assistant
 
-An AI-powered SQL assistant that converts natural language questions into SQL queries using **Google Gemini** and **LangChain**, then executes them on a **SQLite** database.
+An AI-powered SQL assistant that converts natural language questions into secure SQLite queries, executes them, and translates the raw results back into human-friendly, natural language answers. 
 
-This project demonstrates how Large Language Models (LLMs) can bridge the gap between human language and relational databases through **Natural Language to SQL (NL2SQL)**.
+This project utilizes **Google Gemini (Gemini 2.5 Flash)**, **LangChain (LCEL)**, **Streamlit** for the web interface, and **Pandas** for structured data visualization.
 
 ---
 
 ## ✨ Features
 
-- 🔹 Convert natural language into SQL queries using Google Gemini.
-- 🔹 Execute generated SQL against a SQLite database.
-- 🔹 Prompt-based SQL generation using LangChain Expression Language (LCEL).
-- 🔹 Database schema-aware prompting.
-- 🔹 Command-line interface (CLI).
-- 🔹 Easy to customize for other databases.
+- 🔹 **Natural Language to SQL (NL2SQL):** Converts conversational questions into valid SQLite queries.
+- 🔹 **Conversational Answers:** Translates raw database tuples into clear, natural language explanations.
+- 🔹 **Interactive Web GUI:** A modern, split-layout web interface built with **Streamlit** to display queries and results side-by-side.
+- 🔹 **Command-Line Interface (CLI):** Lightweight terminal-based interface (`cli.py`) for quick testing and development.
+- 🔹 **SQL Security Guardrails:** Includes a built-in validator (`security/sql_validator.py`) using regular expressions to block destructive SQL commands (e.g., `DROP`, `DELETE`, `UPDATE`) and prevent SQL Injection (stacked queries).
+- 🔹 **Interactive Data Tables:** Renders query results as sortable, searchable tables using **Pandas** and Streamlit's native dataframes.
 
 ---
 
@@ -22,15 +22,25 @@ This project demonstrates how Large Language Models (LLMs) can bridge the gap be
 ```text
 AI-powered-SQL-Assistant/
 │
-├── app.py                  # Main CLI application
-├── chain.py                # LangChain prompt pipeline
-├── connect_database.py     # Database & Gemini configuration
-├── create_database.py      # Create and seed SQLite database
+├── core/                           # Core LangChain components & LLM logic
+│   ├── chains.py                   # Defines LangChain chains (SQL generation, NL response)
+│   └── prompts.py                  # Stores all ChatPromptTemplate instances
+│
+├── database/                       # Database connection & utilities
+│   ├── connection.py               # Handles LLM & SQLDatabase connections
+│   └── tools.py                    # Defines database execution tools
+│
+├── security/                       # SQL Guardrails and validation logic
+│   └── sql_validator.py            # Contains logic to validate generated SQL queries
+│
+├── cli.py                          # Command-Line Interface application
+├── gui.py                          # Streamlit Web GUI application
+├── create_database.py              # Creates and seeds the sample SQLite database
 │
 ├── data/
-│   └── sample.db             # Sample SQLite database
+│   └── shop.db                     # SQLite database file
 │
-├── .env                    # Google AI Studio API Key
+├── .env                            # Environment variables (Google API Key)
 ├── pyproject.toml
 ├── uv.lock
 └── README.md
@@ -54,22 +64,28 @@ AI-powered-SQL-Assistant/
 
 ```text
 User Question
-      │
-      ▼
-ChatPromptTemplate
-      │
-      ▼
-Google Gemini
-      │
-Generate SQL Query
-      │
-      ▼
-SQLite Database
-      │
-Execute Query
-      │
-      ▼
-Query Result
+             │
+             ▼
+    [SQL Generation Chain]
+             │
+             ▼
+    Generated SQL Query
+             │
+      [SQL Validator] ──(Unsafe Query)──► Stop Execution (Error Alert)
+             │
+         (Safe Query)
+             │
+             ▼
+     [SQLite Database]
+             │
+             ▼
+     Pandas DataFrame  ──► Display Interactive Table in GUI
+             │
+             ▼
+    [NL Response Chain]
+             │
+             ▼
+  Natural Language Answer
 ```
 
 ---
@@ -104,70 +120,33 @@ You can obtain your API key from Google AI Studio.
 
 ---
 
-## 🗄️ Sample Database
-
-A sample SQLite database is included for demonstration purposes.
-
-If needed, you can generate the sample database by running:
-
-```bash
-uv run create_database.py
-```
-
-You can also replace it with your own SQLite database by updating the database connection in `connect_database.py`.
-
----
-
-## ▶️ Usage
-
-Run the application
-
-```bash
-uv run app.py
-```
-
-### Example
-
-```text
-Ask a question:
-
-List all records from the sample database.
-```
-
-Generated SQL
-
-```sql
-SELECT *
-FROM your_table;
-```
-
-Result
-
-```text
-[(...)]
-```
-
----
-
 ## 📌 Current Limitations
 
-- Supports SQLite only.
-- CLI interface only.
-- No SQL safety validation.
-- No natural language explanation of query results.
-- Uses a small sample database.
+- **Single-turn Conversation Only:** Currently, the system does not retain chat history; each query is treated as an independent conversation without contextual memory.
+- **SQLite Database Support Only:** The connection is hardcoded to SQLite (requires manual adjustments in `database/connection.py` to support other database engines).
+- **Static Configuration:** Database connection strings are loaded from local files instead of allowing dynamic configuration via the user interface.
+- **No Automatic Self-Correction:** If a generated SQL query contains syntax errors, the system displays the database error instead of automatically asking the LLM to rewrite and heal the query.
 
 ---
 
 ## 🚧 Future Improvements
 
-- Streamlit web interface.
-- SQL validation & guardrails.
-- Natural language explanation of query results.
-- Support PostgreSQL / MySQL.
-- Chat history.
-- Multi-turn conversation.
-- Database connection from user configuration.
+- 🔄 **Multi-turn Chat & Memory:** Integrate conversational history (e.g., using LangGraph or LangChain's message history) to allow contextual follow-up questions (e.g., "Who bought the most?" followed by "What did they buy?").
+- 📊 **Dynamic Data Visualization:** Add features to automatically generate interactive charts (bar, line, pie charts) based on the tabular query results.
+- 🎛️ **Dynamic DB Configuration:** Allow users to dynamically configure their database connections (PostgreSQL, MySQL, SQLite) directly from the Web UI.
+- 🧠 **Self-Correction Loop:** Implement an agentic loop where the LLM automatically reads database execution errors, self-corrects the SQL query, and retries the execution.
+- ☁️ **Cloud Deployment:** Package and deploy the Streamlit application to Streamlit Cloud or Hugging Face Spaces for easy sharing and accessibility.
+
+---
+
+## 🛡️ Security Guardrails
+
+To prevent unauthorized database modifications, all generated queries must pass through `security/sql_validator.py` before execution. 
+
+The validator applies the following checks:
+1. **Query Type Restriction:** Only queries starting with `SELECT` are permitted.
+2. **Keyword Blacklist:** Detects and blocks DML/DDL commands (e.g., `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`) using whole-word regular expression matching to prevent false positives on columns like `created_at`.
+3. **Stacked Query Prevention:** Blocks stacked queries containing semicolons (`;`) to mitigate SQL injection.
 
 ---
 
@@ -179,6 +158,5 @@ This project is licensed under the MIT License.
 
 ## 👨‍💻 Author
 
-**Tran Pham Trong Nhan**
-
+**Tran Pham Trong Nhan**  
 AI Engineer | Machine Learning | Computer Vision | LLM Applications
