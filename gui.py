@@ -27,7 +27,7 @@ if st.button("Generate & Execute SQL"):
                 # 2. Validate SQL Query
                 if not is_safe_query(sql):
                     st.error("🚨 WARNING: Generated SQL query is unsafe and was not executed.")
-                    return
+                    st.stop()
 
                 # 3. Execute SQL Query
                 result = db_executor_tool.invoke(sql)
