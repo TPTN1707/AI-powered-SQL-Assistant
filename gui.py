@@ -97,7 +97,7 @@ if st.button("Submit", type="primary"):
                             mime="text/csv"
                         )
 
-                        result = df.to_string(index=False)
+                        result_for_llm = df.to_string(index=False)
                     else:
                         st.info("Query returned no rows.")
                         result_for_llm = "No results found."
