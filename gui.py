@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import text, inspect  # Import thêm "inspect" để quét sơ đồ database
 from core.chains import sql_generation_chain, nl_response_chain
 from database.connection import db, schema
 from security.sql_validator import is_safe_query
@@ -10,21 +10,53 @@ st.title("🤖 AI-Powered SQL Assistant")
 
 # Initialize Chat History in Session State if not present
 if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []  # List of dicts: {"question": ..., "answer": ...}
+    st.session_state.chat_history = []
 
-# Sidebar to clear history
-st.sidebar.header("⚙️ Chat Settings")
-if st.sidebar.button("Clear Chat History"):
+# Sidebar Config
+st.sidebar.header("⚙️ Settings & Database Explorer")
+
+# Chat control buttons
+if st.sidebar.button("Clear Chat History", use_container_width=True):
     st.session_state.chat_history = []
     st.sidebar.success("Chat history cleared!")
+
+st.sidebar.markdown("---")
+
+# Feature B: Database Schema Explorer
+try:
+    # Use SQLAlchemy inspector to scan the active database
+    inspector = inspect(db._engine)
+    table_names = inspector.get_table_names()
+    
+    with st.sidebar.expander("🗂️ Database Schema Explorer", expanded=True):
+        for table in table_names:
+            st.markdown(f"### 📋 Table: `{table}`")
+            columns = inspector.get_columns(table)
+            
+            # Format columns list inside expander
+            col_markdown = ""
+            for col in columns:
+                col_name = col['name']
+                col_type = str(col['type'])
+                
+                # Check and highlight primary key
+                is_pk = "🔑" if col.get('primary_key') else "🔹"
+                col_markdown += f"{is_pk} `{col_name}` ({col_type})  \n"
+                
+            st.markdown(col_markdown)
+            st.markdown("---")
+            
+except Exception as schema_err:
+    st.sidebar.error(f"Failed to load database schema: {schema_err}")
+
 
 # Helper function to format recent chat history for the prompt context
 def format_chat_history():
     formatted_history = ""
-    # We only pass the last 5 turns to maintain contextual focus and save token limits
     for turn in st.session_state.chat_history[-5:]:
         formatted_history += f"User: {turn['question']}\nAI Response: {turn['answer']}\n\n"
     return formatted_history if formatted_history else "No previous history."
+
 
 # Input for user question
 question = st.text_input("Ask a question about your database:", placeholder="e.g., Who is our top customer?")
@@ -43,7 +75,7 @@ if st.button("Submit", type="primary"):
                 
                 for attempt in range(max_attempts):
                     try:
-                        # 1. Generate SQL Query (includes chat history and potential error feedback)
+                        # 1. Generate SQL Query
                         sql = sql_generation_chain.invoke({
                             "question": question,
                             "schema": schema,
@@ -60,11 +92,9 @@ if st.button("Submit", type="primary"):
                         with db._engine.connect() as conn:
                             df = pd.read_sql_query(text(sql), conn)
                         
-                        # If successful, exit the self-correction retry loop
                         break
                         
                     except Exception as execution_error:
-                        # If the first attempt failed, prepare error feedback and retry
                         if attempt == 0:
                             error_feedback = (
                                 f"--- PREVIOUS ATTEMPT FAILED ---\n"
@@ -74,8 +104,10 @@ if st.button("Submit", type="primary"):
                             )
                             continue
                         else:
-                            # If the self-corrected query fails as well, bubble up the error
                             raise execution_error
+
+                # Khởi tạo giá trị mặc định để tránh NameError
+                result_for_llm = "No results found."
 
                 # 4. Display Results (Columns layout)
                 col1, col2 = st.columns([1, 1])
@@ -91,16 +123,14 @@ if st.button("Submit", type="primary"):
                         # Convert dataframe to CSV format for download
                         csv_data = df.to_csv(index=False).encode('utf-8')
                         st.download_button(
-                            label="📥 Download Results as CSV",
+                            label="📥 Download results as CSV",
                             data=csv_data,
-                            file_name="query_results.csv",
-                            mime="text/csv"
+                            file_name="query_result.csv",
+                            mime="text/csv",
                         )
-
                         result_for_llm = df.to_string(index=False)
                     else:
                         st.info("Query returned no rows.")
-                        result_for_llm = "No results found."
 
                 # 5. Generate Natural Language Response
                 with col2:
@@ -112,7 +142,6 @@ if st.button("Submit", type="primary"):
                     st.subheader("💬 Answer:")
                     st.info(final_answer)
                     
-                    # Store current Q&A turn into the chat history state
                     st.session_state.chat_history.append({
                         "question": question,
                         "answer": final_answer
@@ -125,7 +154,6 @@ if st.button("Submit", type="primary"):
 if st.session_state.chat_history:
     st.markdown("---")
     st.subheader("📜 Recent Conversation History")
-    # Display newest conversations on top
     for turn in reversed(st.session_state.chat_history):
         with st.chat_message("user"):
             st.write(turn["question"])
