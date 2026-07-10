@@ -87,7 +87,17 @@ if st.button("Submit", type="primary"):
                     st.subheader("📊 Query Result:")
                     if not df.empty:
                         st.dataframe(df, width="stretch", hide_index=True)
-                        result_for_llm = df.to_string(index=False)
+                        
+                        # Convert dataframe to CSV format for download
+                        csv_data = df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="📥 Download Results as CSV",
+                            data=csv_data,
+                            file_name="query_results.csv",
+                            mime="text/csv"
+                        )
+
+                        result = df.to_string(index=False)
                     else:
                         st.info("Query returned no rows.")
                         result_for_llm = "No results found."
