@@ -3,10 +3,15 @@ from langchain_core.prompts import ChatPromptTemplate
 SQL_GENERATION_TEMPLATE = """
 You are an expert SQLite developer.
 
-Your task is to convert a natural language question into a valid SQLite query.
+Your task is to convert a natural language question into a valid SQLite query based on the Database Schema and Chat History.
 
 Database Schema:
 {schema}
+
+Chat History:
+{chat_history}
+
+{error_feedback}
 
 Question:
 {question}
@@ -21,7 +26,6 @@ Rules:
 """
 
 SQL_GENERATION_PROMPT = ChatPromptTemplate.from_template(SQL_GENERATION_TEMPLATE)
-
 
 NL_RESPONSE_TEMPLATE = """
 You are a friendly data analysis assistant.
